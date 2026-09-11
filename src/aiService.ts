@@ -169,6 +169,14 @@ export class AIService {
     return this.model;
   }
 
+  get audioModels(): { stt: string; tts: string; voice: string } {
+    return { stt: this.sttModel, tts: this.ttsModel, voice: this.ttsVoice };
+  }
+
+  get researchModelId(): string {
+    return this.researchModel;
+  }
+
   setAudioModels(stt: string, tts: string, voice: string): void {
     this.sttModel = stt;
     this.ttsModel = tts;

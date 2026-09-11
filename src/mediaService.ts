@@ -74,6 +74,10 @@ export class MediaService {
     return this.micGranted;
   }
 
+  get cameraEnabled(): boolean {
+    return !!this.videoStream && this.videoStream.getTracks().some((t) => t.readyState === "live");
+  }
+
   get hearingActive(): boolean {
     return this.hearing;
   }
@@ -192,6 +196,38 @@ export class MediaService {
       height,
       timestamp: Date.now(),
     };
+  }
+
+  /** Grants or revokes webcam access. Revoking stops frames from being captured. */
+  async setCameraEnabled(enabled: boolean): Promise<void> {
+    if (enabled) {
+      if (this.cameraEnabled) return;
+      try {
+        await this.openCamera();
+      } catch (error) {
+        throw new Error(String(error));
+      }
+      return;
+    }
+    this.videoStream?.getTracks().forEach((t) => t.stop());
+    this.videoStream = null;
+    this.videoElement?.removeAttribute("src");
+    this.camGranted = false;
+    this.lastCaptureAt = 0;
+  }
+
+  /** Grants or revokes microphone access. Revoking silences listening + recording. */
+  async setMicrophoneEnabled(enabled: boolean): Promise<void> {
+    if (!enabled) {
+      this.stopHearing();
+      this.audioStream?.getTracks().forEach((t) => t.stop());
+      this.audioStream = null;
+      this.micGranted = false;
+      this.teardownAudioGraph();
+      return;
+    }
+    if (this.micGranted) return;
+    await this.openMicrophone();
   }
 
   /** Pauses the voice-analysis loop and silences the analyser feed. */

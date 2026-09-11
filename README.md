@@ -102,11 +102,22 @@ npm run tauri build           # produces NSIS installer in src-tauri/target/rele
 
 ## How to use
 
+Big G launches as an always-on-top desktop HUD with three zones:
+
+- **Left — the orb.** Tap it (no drag) to wake/sleep listening. Drag it to move the window.
+- **Center — chat.** Type any message or command and press Enter even when the orb is listening.
+- **Right — function buttons.** Mic (toggle listening), Voice (mute/silence TTS), Cam (revoke/restore camera), Agents, Memory, and Settings.
+
+Other controls:
+
 1. **Wake the orb** — tap it (a click without dragging). Big G requests mic+camera.
 2. **Talk** — speak; the emerald shockwave shows capture. On a pause, Big G transcribes, thinks (cosmic swirl), executes any tool intents, then speaks back (warm pulse).
-3. **Move it** — drag anywhere; the overlay follows you to any screen corner.
-4. **Sleep** — tap again, or press `Esc`.
-5. **Reminders** — say something like *"remind me to call Sarah at 5pm"*.
+3. **Mute** — the **Voice** button silences TTS output; **Mic** stops listening; **Cam** turns off the camera entirely.
+4. **Settings** — paste your OpenRouter key and tune models/voice/email/calendar/security *at runtime*; changes apply immediately (saved in memory, no restart).
+5. **Agents** — activate any agent to route the next conversation through a dedicated model (Coder, Vision, Researcher, Media).
+6. **Memory** — inspect everything Big G remembers and add facts directly.
+7. **Move / Sleep** — drag the orb or the header anywhere; press `Esc` to sleep, close, or cancel an approval prompt.
+8. **Reminders** — say or type something like *"remind me to call Sarah at 5pm"*.
 
 ---
 

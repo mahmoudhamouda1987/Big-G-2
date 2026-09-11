@@ -7,19 +7,195 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <main id="orb-shell" class="orb-shell" data-tauri-drag-region>
-      <div id="orb" class="orb orb--idle" data-tauri-drag-region>
-        <div id="aura" class="orb__aura" data-tauri-drag-region></div>
-        <div id="shock" class="orb__shock" data-tauri-drag-region></div>
-        <div id="core" class="orb__core" data-tauri-drag-region>
-          <span id="glyph" class="orb__glyph" data-tauri-drag-region>g</span>
+    <div id="hud" class="hud">
+      <header id="drag-bar" class="drag-bar" data-tauri-drag-region>
+        <div class="brand" data-tauri-drag-region>
+          <span class="brand-dot" data-tauri-drag-region></span>
+          <span class="brand-name" data-tauri-drag-region>BIG&nbsp;G</span>
         </div>
-        <div id="ring" class="orb__ring" data-tauri-drag-region></div>
-      </div>
-    </main>
+        <div id="hud-state" class="hud-state" data-tauri-drag-region>IDLE</div>
+        <div class="win-btns">
+          <button id="btn-minimize" class="win-btn" title="Minimize" type="button">&#8211;</button>
+          <button id="btn-close" class="win-btn win-btn--close" title="Close" type="button">&#10005;</button>
+        </div>
+      </header>
 
-    <div id="status-line" class="status-line">IDLE</div>
+      <section class="body-row">
+        <aside class="col-orb">
+          <div id="orb-shell" class="orb-shell" data-tauri-drag-region>
+            <div id="orb" class="orb orb--idle" data-tauri-drag-region>
+              <div id="aura" class="orb__aura"></div>
+              <div id="shock" class="orb__shock"></div>
+              <div id="orbit" class="orb__orbit">
+                <span class="orb__sat orb__sat--a"></span>
+                <span class="orb__sat orb__sat--b"></span>
+              </div>
+              <div id="sheen" class="orb__sheen"></div>
+              <div id="core" class="orb__core">
+                <span id="glyph" class="orb__glyph" data-tauri-drag-region>G</span>
+              </div>
+              <div id="ring" class="orb__ring"></div>
+            </div>
+          </div>
+          <div id="orb-status" class="orb-status">IDLE</div>
+          <div class="led-row">
+            <span id="led-mic" class="led" title="Microphone">&#9679; MIC</span>
+            <span id="led-cam" class="led" title="Camera">&#9679; CAM</span>
+            <span id="led-voice" class="led" title="Voice output">&#9679; VOICE</span>
+          </div>
+        </aside>
+
+        <section class="col-chat">
+          <div id="transcript" class="transcript"></div>
+          <form id="chat-form" class="chat-form" autocomplete="off">
+            <input
+              id="chat-input"
+              class="chat-input"
+              type="text"
+              placeholder="Type a command or message to Big G…"
+              maxlength="240"
+            />
+            <button id="chat-send" class="chat-send" type="submit" title="Send">&#10148;</button>
+          </form>
+        </section>
+
+        <aside class="col-fn">
+          <button id="btn-mic" class="fn-btn" type="button" title="Toggle listening">
+            <span class="fn-ico">&#127908;</span><span class="fn-label">Mic</span>
+          </button>
+          <button id="btn-speak" class="fn-btn fn-btn--on" type="button" title="Toggle voice output">
+            <span class="fn-ico">&#128266;</span><span class="fn-label">Voice</span>
+          </button>
+          <button id="btn-cam" class="fn-btn fn-btn--on" type="button" title="Toggle camera">
+            <span class="fn-ico">&#128247;</span><span class="fn-label">Cam</span>
+          </button>
+          <button data-drawer="panel-agents" class="fn-btn" type="button" title="Agent network">
+            <span class="fn-ico">&#129504;</span><span class="fn-label">Agents</span>
+          </button>
+          <button data-drawer="panel-memory" class="fn-btn" type="button" title="Memory">
+            <span class="fn-ico">&#128451;</span><span class="fn-label">Memory</span>
+          </button>
+          <button data-drawer="panel-settings" class="fn-btn" type="button" title="Settings">
+            <span class="fn-ico">&#9881;</span><span class="fn-label">Settings</span>
+          </button>
+        </aside>
+      </section>
+    </div>
+
     <div id="response-bubble" class="response-bubble"></div>
+
+    <div id="drawer-backdrop" class="drawer-backdrop hidden">
+      <section id="drawer" class="drawer">
+        <header class="drawer-head">
+          <span id="drawer-title">Settings</span>
+          <div class="win-btns">
+            <button id="drawer-close" class="win-btn" type="button" title="Close">&#10005;</button>
+          </div>
+        </header>
+
+        <div id="panel-settings" class="drawer-panel">
+          <p id="settings-note"></p>
+
+          <label class="field">
+            <span>OpenRouter API key</span>
+            <input id="cfg-api-key" class="input" type="password" placeholder="sk-or-v1-…" />
+          </label>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Core model</span>
+              <input id="cfg-model" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>Research model</span>
+              <input id="cfg-research" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>STT model</span>
+              <input id="cfg-stt" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>TTS model</span>
+              <input id="cfg-tts" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>TTS voice</span>
+              <input id="cfg-voice" class="input" type="text" />
+            </label>
+          </div>
+
+          <h3 class="drawer-sub">Email (SMTP) &amp; Calendar</h3>
+          <div class="field-grid">
+            <label class="field">
+              <span>SMTP host</span>
+              <input id="cfg-smtp-host" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>SMTP port</span>
+              <input id="cfg-smtp-port" class="input" type="number" />
+            </label>
+            <label class="field">
+              <span>SMTP user</span>
+              <input id="cfg-smtp-user" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>SMTP password</span>
+              <input id="cfg-smtp-pass" class="input" type="password" />
+            </label>
+            <label class="field">
+              <span>From address</span>
+              <input id="cfg-smtp-from" class="input" type="text" />
+            </label>
+            <label class="field">
+              <span>Gmail token</span>
+              <input id="cfg-gmail-token" class="input" type="password" />
+            </label>
+            <label class="field">
+              <span>Calendar token</span>
+              <input id="cfg-cal-token" class="input" type="password" />
+            </label>
+            <label class="field">
+              <span>Calendar ID</span>
+              <input id="cfg-cal-id" class="input" type="text" />
+            </label>
+            <label class="field field--check">
+              <input id="cfg-smtp-tls" class="input--check" type="checkbox" checked />
+              <span>Use TLS for SMTP</span>
+            </label>
+          </div>
+
+          <h3 class="drawer-sub">Security allowlist</h3>
+          <p class="drawer-hint">PowerShell / Python / Node commands Big&nbsp;G may run without confirmation.</p>
+          <textarea id="cfg-allowlist" class="input input--area" placeholder='["pwsh.exe","powershell.exe"]'></textarea>
+
+          <p class="drawer-note">
+            Big&nbsp;G applies no app-level content filters. The model / provider you connect to retains its
+            own service policies. Your data stays on this device unless you ask Big&nbsp;G to send it.
+          </p>
+
+          <button id="cfg-save" class="btn-primary" type="button">Save settings</button>
+          <span id="cfg-status" class="cfg-status"></span>
+        </div>
+
+        <div id="panel-agents" class="drawer-panel hidden">
+          <p class="drawer-hint">Big&nbsp;G delegates specialized work to these agents. Activate one to route the next conversation through it.</p>
+          <div id="agents-list" class="agents-list"></div>
+        </div>
+
+        <div id="panel-memory" class="drawer-panel hidden">
+          <div class="memory-add">
+            <input id="mem-fact-input" class="input" type="text" placeholder="Add a fact Big G should remember…" maxlength="280" />
+            <button id="mem-fact-add" class="btn-primary" type="button">Add</button>
+          </div>
+          <h3 class="drawer-sub">Facts</h3>
+          <ul id="mem-facts" class="mem-list"></ul>
+          <h3 class="drawer-sub">Events</h3>
+          <ul id="mem-events" class="mem-list"></ul>
+          <h3 class="drawer-sub">Improvements</h3>
+          <ul id="mem-improvements" class="mem-list"></ul>
+        </div>
+      </section>
+    </div>
 
     <script type="module" src="/main.ts"></script>
   </body>

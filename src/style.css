@@ -6,6 +6,13 @@
   --pulse-rate: 1;
   --state-duration: 4s;
   --listen-duration: 0.9s;
+  --accent: #2fb6ff;
+  --accent-2: #7c5cff;
+  --accent-3: #17e6b8;
+  --glass: rgba(10, 16, 34, 0.58);
+  --glass-2: rgba(16, 24, 48, 0.7);
+  --stroke: rgba(140, 180, 255, 0.22);
+  --text: #eaf2ff;
 }
 
 html,
@@ -19,22 +26,171 @@ body {
   user-select: none;
   -webkit-user-select: none;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--text);
 }
 
-body {
+* {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------ */
+/* HUD SHELL                                                            */
+/* ------------------------------------------------------------------ */
+
+.hud {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1200px 640px at 50% -20%, rgba(64, 110, 255, 0.14), transparent 60%),
+    radial-gradient(900px 600px at 100% 110%, rgba(124, 92, 255, 0.12), transparent 55%),
+    rgba(6, 10, 24, 0.42);
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/* DRAG BAR                                                             */
+/* ------------------------------------------------------------------ */
+
+.drag-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: grab;
+  border-bottom: 1px solid var(--stroke);
+  background: linear-gradient(180deg, rgba(40, 90, 200, 0.16), transparent);
+}
+
+.drag-bar:active {
+  cursor: grabbing;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2fb6ff;
+  box-shadow: 0 0 12px #2fb6ff, 0 0 26px rgba(47, 182, 255, 0.55);
+  animation: brand-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes brand-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+
+.brand-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  background: linear-gradient(90deg, #bfe4ff, #8db8ff 55%, #b9a6ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hud-state {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: rgba(234, 242, 255, 0.72);
+  transition: color 0.35s ease;
+}
+
+body[data-state="listening"] .hud-state { color: var(--accent-3); }
+body[data-state="thinking"] .hud-state { color: #c4a6ff; }
+body[data-state="speaking"] .hud-state { color: #ffd697; }
+
+.win-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.win-btn {
+  width: 26px;
+  height: 24px;
+  border: 1px solid var(--stroke);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(234, 242, 255, 0.85);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.win-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.win-btn--close:hover {
+  background: rgba(255, 80, 80, 0.75);
+  border-color: rgba(255, 120, 120, 0.6);
+}
+
 /* ------------------------------------------------------------------ */
-/* ORB SHELL — full transparent click/drag matrix that owns the window  */
+/* BODY ROW                                                             */
+/* ------------------------------------------------------------------ */
+
+.body-row {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  min-height: 0;
+}
+
+.col-orb {
+  width: 240px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.col-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.col-fn {
+  width: 90px;
+  min-width: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------------ */
+/* ORB SHELL                                                            */
 /* ------------------------------------------------------------------ */
 
 .orb-shell {
   position: relative;
-  width: 250px;
-  height: 250px;
+  width: 220px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,14 +201,10 @@ body {
   cursor: grabbing;
 }
 
-/* ------------------------------------------------------------------ */
-/* ORB — glowing circular asset                                        */
-/* ------------------------------------------------------------------ */
-
 .orb {
   position: absolute;
-  width: 176px;
-  height: 176px;
+  width: 148px;
+  height: 148px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -63,10 +215,10 @@ body {
 
 .orb__aura {
   position: absolute;
-  inset: -28px;
+  inset: -34px;
   border-radius: 50%;
   opacity: 0.55;
-  filter: blur(22px);
+  filter: blur(20px);
   will-change: transform, opacity;
   pointer-events: none;
 }
@@ -76,6 +228,61 @@ body {
   inset: 0;
   border-radius: 50%;
   opacity: 0;
+  pointer-events: none;
+}
+
+.orb__orbit {
+  position: absolute;
+  inset: -52px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orb__sat {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  opacity: 0.9;
+}
+
+.orb__sat--a {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg) translateX(100px);
+  background: radial-gradient(circle, #ffffff, #3fd8ff);
+  box-shadow: 0 0 10px #3fd8ff, 0 0 22px rgba(63, 216, 255, 0.5);
+  animation: sat-a 8s linear infinite;
+}
+
+@keyframes sat-a {
+  from { transform: translate(-50%, -50%) rotate(0deg) translateX(100px); }
+  to { transform: translate(-50%, -50%) rotate(360deg) translateX(100px); }
+}
+
+.orb__sat--b {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg) translateX(78px);
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, #ffffff, #b9a6ff);
+  box-shadow: 0 0 8px #b9a6ff;
+  animation: sat-b 13s linear infinite reverse;
+}
+
+@keyframes sat-b {
+  from { transform: translate(-50%, -50%) rotate(0deg) translateX(78px); }
+  to { transform: translate(-50%, -50%) rotate(360deg) translateX(78px); }
+}
+
+.orb__sheen {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 33% 28%, rgba(255, 255, 255, 0.55), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0.75;
   pointer-events: none;
 }
 
@@ -90,11 +297,17 @@ body {
 }
 
 .orb__glyph {
-  font-size: 72px;
-  font-weight: 200;
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 0 18px currentColor;
+  font-size: 62px;
+  font-weight: 800;
+  font-style: italic;
   line-height: 1;
+  letter-spacing: -2px;
+  background: linear-gradient(180deg, #ffffff 8%, #bfe9ff 42%, #5fd0ff 78%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 26px rgba(95, 208, 255, 0.9);
+  filter: drop-shadow(0 0 10px rgba(47, 182, 255, 0.85));
   font-family: "Segoe UI", "Consolas", monospace;
 }
 
@@ -102,94 +315,82 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  opacity: 0.6;
+  border: 2px solid rgba(200, 235, 255, 0.32);
+  opacity: 0.7;
   pointer-events: none;
 }
 
 /* ------------------------------------------------------------------ */
-/* IDLE — slow, calming neon sci-fi blue pulse                          */
+/* IDLE                                                                 */
 /* ------------------------------------------------------------------ */
 
 .orb--idle {
   background: radial-gradient(
     circle at 34% 30%,
     #ffffff 0%,
-    rgba(40, 181, 255, 0.9) 22%,
-    rgba(8, 96, 220, 0.85) 55%,
-    rgba(2, 34, 112, 0.95) 100%
+    rgba(64, 186, 255, 0.92) 24%,
+    rgba(18, 110, 230, 0.88) 58%,
+    rgba(4, 40, 120, 0.96) 100%
   );
   box-shadow:
-    0 0 34px rgba(40, 181, 255, 0.55),
-    0 0 90px rgba(40, 181, 255, 0.28),
-    inset 0 0 22px rgba(255, 255, 255, 0.35);
+    0 0 34px rgba(64, 186, 255, 0.6),
+    0 0 90px rgba(64, 186, 255, 0.3),
+    inset 0 0 22px rgba(255, 255, 255, 0.4);
   animation: idle-pulse var(--state-duration) ease-in-out infinite;
 }
 
 .orb--idle .orb__aura {
   background: radial-gradient(
     circle,
-    rgba(40, 181, 255, 0.65) 0%,
-    rgba(20, 90, 220, 0.25) 45%,
+    rgba(64, 186, 255, 0.7) 0%,
+    rgba(30, 100, 230, 0.28) 46%,
     transparent 70%
   );
   animation: idle-aura var(--state-duration) ease-in-out infinite;
 }
 
 .orb--idle .orb__ring {
-  animation: idle-ring-spin 9s linear infinite;
+  animation: idle-ring-spin 11s linear infinite;
 }
 
 @keyframes idle-pulse {
-  0%,
-  100% {
+  0%, 100% {
     transform: scale(0.97);
     box-shadow:
-      0 0 30px rgba(40, 181, 255, 0.5),
-      0 0 80px rgba(40, 181, 255, 0.24),
-      inset 0 0 20px rgba(255, 255, 255, 0.3);
+      0 0 30px rgba(64, 186, 255, 0.55),
+      0 0 80px rgba(64, 186, 255, 0.26),
+      inset 0 0 20px rgba(255, 255, 255, 0.34);
   }
   50% {
     transform: scale(1.03);
     box-shadow:
-      0 0 46px rgba(40, 181, 255, 0.7),
-      0 0 120px rgba(40, 181, 255, 0.38),
-      inset 0 0 30px rgba(255, 255, 255, 0.5);
+      0 0 48px rgba(64, 186, 255, 0.75),
+      0 0 130px rgba(64, 186, 255, 0.4),
+      inset 0 0 30px rgba(255, 255, 255, 0.55);
   }
 }
 
 @keyframes idle-aura {
-  0%,
-  100% {
-    transform: scale(0.94);
-    opacity: 0.45;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.65;
-  }
+  0%, 100% { transform: scale(0.94); opacity: 0.45; }
+  50% { transform: scale(1.09); opacity: 0.66; }
 }
 
 @keyframes idle-ring-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ------------------------------------------------------------------ */
-/* LISTENING — vibrating, expanding emerald-green shockwave             */
+/* LISTENING                                                            */
 /* ------------------------------------------------------------------ */
 
 .orb--listening {
   background: radial-gradient(
     circle at 38% 32%,
     #e9fffb 0%,
-    rgba(31, 255, 155, 0.92) 24%,
-    rgba(3, 178, 122, 0.88) 58%,
-    rgba(0, 90, 70, 0.96) 100%
+    rgba(31, 255, 155, 0.93) 24%,
+    rgba(3, 178, 122, 0.9) 58%,
+    rgba(0, 90, 70, 0.97) 100%
   );
   animation-name: listen-shock;
   animation-duration: calc(var(--listen-duration) / var(--pulse-rate));
@@ -200,92 +401,63 @@ body {
 .orb--listening .orb__aura {
   background: radial-gradient(
     circle,
-    rgba(31, 255, 155, 0.7) 0%,
-    rgba(0, 200, 140, 0.28) 48%,
+    rgba(31, 255, 155, 0.75) 0%,
+    rgba(0, 200, 140, 0.3) 48%,
     transparent 72%
   );
-  animation: listen-aura-wave calc(var(--listen-duration) / var(--pulse-rate))
-    ease-out infinite;
+  animation: listen-aura-wave calc(var(--listen-duration) / var(--pulse-rate)) ease-out infinite;
 }
 
 .orb--listening .orb__shock {
   border: 3px solid rgba(31, 255, 155, 0.9);
-  box-shadow:
-    0 0 22px rgba(31, 255, 155, 0.8),
-    inset 0 0 18px rgba(31, 255, 155, 0.5);
-  animation: listen-shockwave calc(var(--listen-duration) / var(--pulse-rate))
-    ease-out infinite;
+  box-shadow: 0 0 22px rgba(31, 255, 155, 0.8), inset 0 0 18px rgba(31, 255, 155, 0.5);
+  animation: listen-shockwave calc(var(--listen-duration) / var(--pulse-rate)) ease-out infinite;
 }
 
 .orb--listening .orb__ring {
   border-color: rgba(31, 255, 155, 0.5);
 }
 
+.orb--listening .orb__sat--a {
+  animation-duration: 3.4s;
+  background: radial-gradient(circle, #ffffff, #3dffc0);
+  box-shadow: 0 0 10px #3dffc0;
+}
+
 @keyframes listen-shock {
-  0% {
-    transform: scale(1) translate(0, 0);
-  }
-  18% {
-    transform: scale(1.035) translate(0.6px, -0.8px);
-  }
-  36% {
-    transform: scale(0.985) translate(-0.7px, 0.5px);
-  }
-  54% {
-    transform: scale(1.05) translate(0.5px, 0.7px);
-  }
-  72% {
-    transform: scale(0.99) translate(-0.4px, -0.5px);
-  }
-  100% {
-    transform: scale(1.02) translate(0, 0);
-  }
+  0% { transform: scale(1) translate(0, 0); }
+  18% { transform: scale(1.035) translate(0.6px, -0.8px); }
+  36% { transform: scale(0.985) translate(-0.7px, 0.5px); }
+  54% { transform: scale(1.05) translate(0.5px, 0.7px); }
+  72% { transform: scale(0.99) translate(-0.4px, -0.5px); }
+  100% { transform: scale(1.02) translate(0, 0); }
 }
 
 @keyframes listen-aura-wave {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.5;
-  }
-  55% {
-    transform: scale(1.22);
-    opacity: 0.85;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0.5;
-  }
+  0% { transform: scale(0.9); opacity: 0.5; }
+  55% { transform: scale(1.24); opacity: 0.88; }
+  100% { transform: scale(0.9); opacity: 0.5; }
 }
 
 @keyframes listen-shockwave {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.95;
-  }
-  70% {
-    transform: scale(1.28);
-    opacity: 0.35;
-  }
-  100% {
-    transform: scale(0.7);
-    opacity: 0;
-  }
+  0% { transform: scale(0.7); opacity: 0.95; }
+  70% { transform: scale(1.32); opacity: 0.35; }
+  100% { transform: scale(0.7); opacity: 0; }
 }
 
 /* ------------------------------------------------------------------ */
-/* THINKING — heavy swirling cosmic purple / violet gradient aura       */
+/* THINKING                                                             */
 /* ------------------------------------------------------------------ */
 
 .orb--thinking {
   background: radial-gradient(
     circle at 30% 30%,
     #ffffff 0%,
-    rgba(167, 139, 250, 0.95) 20%,
-    rgba(123, 47, 247, 0.92) 52%,
+    rgba(167, 139, 250, 0.96) 20%,
+    rgba(123, 47, 247, 0.93) 52%,
     rgba(46, 16, 101, 1) 100%
   );
   animation: thinking-rotate 3.2s linear infinite;
-  opacity: 1;
 }
 
 .orb--thinking .orb__aura {
@@ -297,9 +469,9 @@ body {
     rgba(176, 38, 255, 0.65),
     rgba(255, 0, 255, 0.7)
   );
-  inset: -42px;
+  inset: -46px;
   animation: thinking-aura-spin 2.6s linear infinite;
-  opacity: 0.75;
+  opacity: 0.78;
 }
 
 .orb--thinking .orb__core {
@@ -311,48 +483,35 @@ body {
   border-style: dashed;
 }
 
+.orb--thinking .orb__sat--a { animation-duration: 2.2s; background: radial-gradient(circle, #ffffff, #e879ff); box-shadow: 0 0 10px #e879ff; }
+.orb--thinking .orb__sat--b { animation-duration: 4.4s; }
+
 @keyframes thinking-rotate {
-  from {
-    transform: rotate(0deg) scale(1);
-  }
-  to {
-    transform: rotate(360deg) scale(1);
-  }
+  from { transform: rotate(0deg) scale(1); }
+  to { transform: rotate(360deg) scale(1); }
 }
 
 @keyframes thinking-aura-spin {
-  from {
-    transform: rotate(0deg) scale(1.06);
-    filter: hue-rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg) scale(1.06);
-    filter: hue-rotate(60deg);
-  }
+  from { transform: rotate(0deg) scale(1.08); filter: hue-rotate(0deg); }
+  to { transform: rotate(360deg) scale(1.08); filter: hue-rotate(60deg); }
 }
 
 @keyframes thinking-core-swirl {
-  0% {
-    transform: scale(0.92) rotate(-14deg);
-    filter: saturate(1) brightness(1);
-  }
-  100% {
-    transform: scale(1.08) rotate(14deg);
-    filter: saturate(1.6) brightness(1.25);
-  }
+  0% { transform: scale(0.92) rotate(-14deg); filter: saturate(1) brightness(1); }
+  100% { transform: scale(1.08) rotate(14deg); filter: saturate(1.7) brightness(1.3); }
 }
 
 /* ------------------------------------------------------------------ */
-/* SPEAKING — calm warm white voice pulse                               */
+/* SPEAKING                                                             */
 /* ------------------------------------------------------------------ */
 
 .orb--speaking {
   background: radial-gradient(
     circle at 36% 30%,
     #ffffff 0%,
-    rgba(255, 244, 224, 0.95) 22%,
-    rgba(255, 200, 120, 0.85) 55%,
-    rgba(150, 80, 20, 0.92) 100%
+    rgba(255, 244, 224, 0.96) 22%,
+    rgba(255, 200, 120, 0.88) 55%,
+    rgba(150, 80, 20, 0.94) 100%
   );
   animation: speaking-pulse 1.6s ease-in-out infinite;
 }
@@ -360,8 +519,8 @@ body {
 .orb--speaking .orb__aura {
   background: radial-gradient(
     circle,
-    rgba(255, 214, 140, 0.7) 0%,
-    rgba(255, 160, 70, 0.3) 48%,
+    rgba(255, 214, 140, 0.75) 0%,
+    rgba(255, 160, 70, 0.32) 48%,
     transparent 72%
   );
   animation: speaking-aura 1.6s ease-in-out infinite;
@@ -371,98 +530,509 @@ body {
   border-color: rgba(255, 230, 190, 0.7);
 }
 
+.orb--speaking .orb__sat--a { animation-duration: 5.4s; background: radial-gradient(circle, #ffffff, #ffd283); box-shadow: 0 0 10px #ffd283; }
+
 @keyframes speaking-pulse {
-  0%,
-  100% {
-    transform: scale(0.99);
-  }
-  50% {
-    transform: scale(1.03);
-  }
+  0%, 100% { transform: scale(0.99); }
+  50% { transform: scale(1.03); }
 }
 
 @keyframes speaking-aura {
-  0%,
-  100% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
+  0%, 100% { transform: scale(0.95); opacity: 0.5; }
+  50% { transform: scale(1.12); opacity: 0.82; }
 }
 
 /* ------------------------------------------------------------------ */
-/* Status + response overlay                                           */
+/* STATUS / LEDS                                                        */
 /* ------------------------------------------------------------------ */
 
-.status-line {
-  position: fixed;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+.orb-status {
   font-size: 9px;
-  letter-spacing: 2.5px;
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(0, 0, 0, 0.35);
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: rgba(234, 242, 255, 0.78);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--stroke);
   border-radius: 999px;
-  padding: 2px 10px;
-  text-align: center;
-  pointer-events: none;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  white-space: nowrap;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: border-color 0.4s ease, color 0.4s ease;
+  padding: 3px 12px;
 }
 
-body[data-state="listening"] .status-line {
-  color: rgba(31, 255, 155, 0.95);
-  border-color: rgba(31, 255, 155, 0.5);
+.led-row {
+  display: flex;
+  gap: 8px;
 }
 
-body[data-state="thinking"] .status-line {
-  color: rgba(216, 180, 254, 0.95);
-  border-color: rgba(216, 180, 254, 0.5);
+.led {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: rgba(234, 242, 255, 0.5);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.25);
+  transition: color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-body[data-state="speaking"] .status-line {
-  color: rgba(255, 214, 150, 0.95);
-  border-color: rgba(255, 214, 150, 0.5);
+.led.is-on {
+  color: #7dfeed;
+  border-color: rgba(61, 255, 192, 0.5);
+  box-shadow: 0 0 8px rgba(61, 255, 192, 0.35);
 }
+
+.led.is-off {
+  color: rgba(234, 242, 255, 0.3);
+  border-color: rgba(234, 242, 255, 0.1);
+}
+
+/* ------------------------------------------------------------------ */
+/* CHAT                                                                 */
+/* ------------------------------------------------------------------ */
+
+.transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px 4px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 180, 255, 0.35) transparent;
+}
+
+.msg {
+  max-width: 88%;
+  padding: 8px 11px;
+  border-radius: 13px;
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-word;
+  white-space: pre-wrap;
+  animation: msg-in 0.22s ease;
+}
+
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.msg--user {
+  align-self: flex-end;
+  background: linear-gradient(180deg, rgba(38, 130, 255, 0.55), rgba(28, 90, 220, 0.55));
+  border: 1px solid rgba(80, 160, 255, 0.4);
+}
+
+.msg--assistant {
+  align-self: flex-start;
+  background: var(--glass-2);
+  border: 1px solid var(--stroke);
+  color: #eaf2ff;
+}
+
+.msg--tool {
+  align-self: flex-start;
+  background: rgba(124, 92, 255, 0.14);
+  border: 1px solid rgba(176, 150, 255, 0.3);
+  font-size: 10.5px;
+  color: #cdbfff;
+}
+
+.msg--error {
+  align-self: flex-start;
+  background: rgba(255, 80, 80, 0.14);
+  border: 1px solid rgba(255, 110, 110, 0.4);
+  font-size: 11px;
+  color: #ffb4b4;
+}
+
+.msg__who {
+  display: block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  opacity: 0.65;
+  margin-bottom: 3px;
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(10, 18, 38, 0.75);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #eaf2ff;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.chat-input:focus {
+  border-color: rgba(47, 182, 255, 0.7);
+  box-shadow: 0 0 12px rgba(47, 182, 255, 0.25);
+}
+
+.chat-input::placeholder {
+  color: rgba(234, 242, 255, 0.4);
+}
+
+.chat-send {
+  width: 44px;
+  border: 1px solid rgba(47, 182, 255, 0.55);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(47, 182, 255, 0.55), rgba(30, 100, 230, 0.55));
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-send:hover {
+  filter: brightness(1.2);
+  box-shadow: 0 0 14px rgba(47, 182, 255, 0.4);
+}
+
+/* ------------------------------------------------------------------ */
+/* FUNCTION BUTTONS                                                     */
+/* ------------------------------------------------------------------ */
+
+.fn-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  background: rgba(13, 22, 46, 0.6);
+  border: 1px solid var(--stroke);
+  border-radius: 13px;
+  color: #eaf2ff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+}
+
+.fn-btn:hover {
+  background: rgba(47, 182, 255, 0.16);
+  border-color: rgba(47, 182, 255, 0.5);
+}
+
+.fn-btn:active {
+  transform: scale(0.96);
+}
+
+.fn-btn .fn-ico {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.fn-btn .fn-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  opacity: 0.85;
+}
+
+.fn-btn--on {
+  border-color: rgba(125, 254, 237, 0.45);
+  background: rgba(61, 255, 192, 0.1);
+}
+
+.fn-btn--off {
+  opacity: 0.45;
+}
+
+/* ------------------------------------------------------------------ */
+/* RESPONSE BUBBLE (transient broadcasts)                               */
+/* ------------------------------------------------------------------ */
 
 .response-bubble {
   position: fixed;
-  top: 8px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 224px;
-  max-height: 130px;
-  font-size: 10px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(5, 8, 24, 0.72);
-  border: 1px solid rgba(40, 181, 255, 0.35);
-  border-radius: 12px;
-  padding: 8px 10px;
-  overflow-y: hidden;
+  width: 300px;
+  max-height: 160px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.94);
+  background: rgba(8, 14, 32, 0.86);
+  border: 1px solid rgba(47, 182, 255, 0.4);
+  border-radius: 13px;
+  padding: 10px 12px;
+  overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
   opacity: 0;
-  transform: translateX(-50%) translateY(-6px);
+  transform: translateX(-50%) translateY(-8px);
   transition: opacity 0.35s ease, transform 0.35s ease;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   pointer-events: none;
+  z-index: 60;
 }
 
 .response-bubble.visible {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ------------------------------------------------------------------ */
+/* DRAWERS                                                              */
+/* ------------------------------------------------------------------ */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 5, 14, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.drawer-backdrop.hidden {
+  display: none;
+}
+
+.drawer {
+  width: 520px;
+  max-width: 92vw;
+  max-height: 82vh;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  background: linear-gradient(180deg, rgba(40, 90, 200, 0.14), transparent);
+}
+
+.drawer-panel {
+  padding: 16px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 180, 255, 0.35) transparent;
+}
+
+.drawer-sub {
+  margin: 18px 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(190, 215, 255, 0.75);
+}
+
+.drawer-hint {
+  margin: 0 0 12px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: rgba(234, 242, 255, 0.6);
+}
+
+.drawer-note {
+  margin: 16px 0;
+  font-size: 10px;
+  line-height: 1.55;
+  color: rgba(190, 215, 255, 0.65);
+  background: rgba(47, 182, 255, 0.07);
+  border: 1px solid rgba(47, 182, 255, 0.25);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: rgba(190, 215, 255, 0.75);
+}
+
+.field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+.input {
+  background: rgba(10, 18, 38, 0.8);
+  border: 1px solid var(--stroke);
+  border-radius: 9px;
+  padding: 8px 10px;
+  color: #eaf2ff;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.input:focus {
+  border-color: rgba(47, 182, 255, 0.7);
+}
+
+.input--area {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  font-family: "Consolas", monospace;
+  font-size: 11px;
+}
+
+.input--check {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent-3);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, rgba(47, 182, 255, 0.7), rgba(26, 100, 220, 0.7));
+  border: 1px solid rgba(120, 200, 255, 0.55);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 9px 18px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.15);
+}
+
+.cfg-status {
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--accent-3);
+}
+
+/* ------------------------------------------------------------------ */
+/* MEMORY / AGENTS LIST                                                 */
+/* ------------------------------------------------------------------ */
+
+.memory-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mem-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mem-list li {
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--stroke);
+  background: rgba(10, 18, 38, 0.6);
+  word-break: break-word;
+}
+
+.mem-list .mem-time {
+  opacity: 0.5;
+  font-size: 9px;
+}
+
+.agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: rgba(10, 18, 38, 0.6);
+}
+
+.agent-card.is-active {
+  border-color: rgba(125, 254, 237, 0.55);
+  background: rgba(61, 255, 192, 0.08);
+}
+
+.agent-card .agent-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-card .agent-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.agent-card .agent-model {
+  font-size: 10px;
+  color: rgba(190, 215, 255, 0.7);
+}
+
+.agent-card .agent-purpose {
+  font-size: 10px;
+  color: rgba(234, 242, 255, 0.55);
+  margin-top: 2px;
+}
+
+.agent-activate {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 9px;
+  border: 1px solid rgba(47, 182, 255, 0.5);
+  background: rgba(47, 182, 255, 0.15);
+  color: #dfefff;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.agent-activate:hover {
+  background: rgba(47, 182, 255, 0.3);
 }
 
 /* Tailwind utility surface (measured against the config) */

@@ -23,6 +23,7 @@ export class VoiceService {
   private callbacks: BigGVoiceCallbacks;
 
   private active = false;
+  private speechMuted = false;
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private state: BigGVoiceState = "sleeping";
@@ -44,6 +45,19 @@ export class VoiceService {
 
   get isActive(): boolean {
     return this.active;
+  }
+
+  get isSpeechMuted(): boolean {
+    return this.speechMuted;
+  }
+
+  setSpeechMuted(muted: boolean): void {
+    this.speechMuted = muted;
+    if (muted && this.speakingAudio) {
+      const audio = this.speakingAudio;
+      this.speakingAudio = null;
+      audio.pause();
+    }
   }
 
   get currentState(): BigGVoiceState {
@@ -85,6 +99,14 @@ export class VoiceService {
     const captureWasOn = this.active;
     if (captureWasOn) this.stopSegment();
     this.setState("speaking");
+
+    if (this.speechMuted) {
+      if (captureWasOn && this.active) {
+        this.media.startHearing();
+        this.setState("listening");
+      }
+      return;
+    }
 
     try {
       const blob = await this.ai.synthesizeSpeech({ text: trimmed });
