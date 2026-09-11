@@ -15,6 +15,11 @@ export interface BigGMemoryEvent {
   note: string;
 }
 
+export interface BigGMemoryNote {
+  t: number;
+  text: string;
+}
+
 export interface BigGMemoryStore {
   version: number;
   profile: Record<string, string>;
@@ -23,6 +28,7 @@ export interface BigGMemoryStore {
   events: BigGMemoryEvent[];
   conversationLog: Array<{ t: number; text: string }>;
   reminders: BigGReminder[];
+  improvements: BigGMemoryNote[];
 }
 
 const DEFAULTS: BigGMemoryStore = {
@@ -33,6 +39,7 @@ const DEFAULTS: BigGMemoryStore = {
   events: [],
   conversationLog: [],
   reminders: [],
+  improvements: [],
 };
 
 /**
@@ -125,6 +132,24 @@ export class MemoryService {
   }
 
   /* ------------------------------------------------------------------ */
+  /* Self-improvement notes                                              */
+  /* ------------------------------------------------------------------ */
+
+  addImprovement(note: string): void {
+    const trimmed = note.trim();
+    if (!trimmed) return;
+    this.store.improvements.push({ t: Date.now(), text: trimmed });
+    if (this.store.improvements.length > 200) {
+      this.store.improvements = this.store.improvements.slice(-200);
+    }
+    void this.save();
+  }
+
+  allImprovements(): BigGMemoryNote[] {
+    return [...this.store.improvements].reverse();
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Reminders                                                           */
   /* ------------------------------------------------------------------ */
 
@@ -134,6 +159,10 @@ export class MemoryService {
 
   allFacts(): string[] {
     return [...this.store.facts];
+  }
+
+  allEvents(): BigGMemoryEvent[] {
+    return [...this.store.events];
   }
 
   allPreferences(): Record<string, unknown> {
@@ -205,6 +234,15 @@ export class MemoryService {
       parts.push(
         `Pending reminders:\n${upcoming
           .map((r) => `- ${new Date(r.at).toLocaleString()} — ${r.text}`)
+          .join("\n")}`,
+      );
+    }
+
+    const improvements = this.store.improvements.slice(-8).reverse();
+    if (improvements.length > 0) {
+      parts.push(
+        `Self-improvement notes:\n${improvements
+          .map((i) => `- ${i.text}`)
           .join("\n")}`,
       );
     }

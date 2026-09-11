@@ -37,6 +37,9 @@ export class ProactiveService {
   private suggestionsThisWindow = 0;
   private windowOpenedAt = Date.now();
   private lastPromptedFactCount = -1;
+  private promptedImprovementIds = new Set<string>();
+  private morningPromptDate = "";
+  private lastErrorPromptAt = 0;
 
   constructor(
     memory: MemoryService,
@@ -98,6 +101,41 @@ export class ProactiveService {
     const scheduledTask = prefs["default_task"];
     if (typeof scheduledTask === "string" && this.scheduler.listReminders().filter((r) => !r.notified).length === 0) {
       return `It's been quiet. Shall I set up a repeating reminder for "${scheduledTask}" or is everything handled?`;
+    }
+
+    // 4) Time-of-day briefing: respect an explicit morning_briefing preference.
+    if (prefs["morning_briefing"] === true) {
+      const today = new Date().toDateString();
+      if (today === this.morningPromptDate) return null;
+      const hour = new Date().getHours();
+      if (hour >= 7 && hour <= 10) {
+        this.morningPromptDate = today;
+        const todays = this.memory
+          .allReminders()
+          .filter((r) => new Date(r.at).toDateString() === today && r.at > now);
+        const count = todays.length;
+        return count > 0
+          ? `Morning! You have ${count} reminder${count === 1 ? "" : "s"} on the books today. Want a rundown now?`
+          : "Morning! Nothing scheduled reminder-wise today. Anything you want covered?";
+      }
+    }
+
+    // 5) Surfaced self-improvement notes — big G acts on its own growth once.
+    for (const improvement of this.memory.allImprovements()) {
+      const key = `${improvement.t}:${improvement.text}`;
+      if (this.promptedImprovementIds.has(key)) continue;
+      this.promptedImprovementIds.add(key);
+      return `Self-improvement note on file: "${improvement.text}". Want me to work on that now?`;
+    }
+
+    // 6) A local tool operation failed recently — offer the code-fix engine.
+    const recentFailure = this.memory
+      .allEvents()
+      .filter((e) => e.kind === "toolerror" && now - e.t < this.options.quietLeadMs)
+      .sort((a, b) => b.t - a.t)[0];
+    if (recentFailure && now - this.lastErrorPromptAt > this.options.quietLeadMs) {
+      this.lastErrorPromptAt = now;
+      return `One of my local operations just hit an error ("${recentFailure.note}"). Want me to examine it and try to fix it automatically?`;
     }
 
     return null;

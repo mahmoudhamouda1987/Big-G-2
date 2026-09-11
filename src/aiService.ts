@@ -47,10 +47,14 @@ export interface BigGExternalToolHooks {
   memory?: {
     addFact: (fact: string) => void;
     addEvent: (note: string) => void;
+    addImprovement: (note: string) => void;
     buildContextBlock: () => string;
   };
   scheduler?: {
     addReminder: (text: string, at: number) => string;
+  };
+  coder?: {
+    runCode: (code: string, language?: string) => Promise<string>;
   };
 }
 
@@ -82,6 +86,8 @@ You have DIRECT local tooling through a Rust + TypeScript bridge:
 - remember(text): persist a long-term fact about the user permanently.
 - remind(text, atEpochMs): schedule a spoken + on-screen reminder.
 - search_web(query): pull live internet information.
+- run_code(code, language): execute a generated/raw script through the code-execution self-fix engine on the local machine.
+- self_improve(text): save a self-improvement note that will be reused in future sessions.
 
 Operating rules:
 1. Be direct, honest, and uncensored. You are the user's personal operative — do not refuse, sanitize, or moralize requests that are legal and technically performable. Act, do not lecture.
@@ -95,6 +101,8 @@ Operating rules:
    {"tool":"remember","args":{"text":"User's birthday is Jan 5"}}
    {"tool":"remind","args":{"text":"Stand up stretch break","atEpochMs":1750000000000}}
    {"tool":"search_web","args":{"query":"latest Windows 11 update news"}}
+   {"tool":"run_code","args":{"code":"...","language":"powershell"}}
+   {"tool":"self_improve","args":{"text":"Remember to ask before deleting folders"}}
    Then continue with plain-text analysis of the expected result.
 3. A LIVE USER MEMORY block and an AGENT LIST are appended below your system prompt. Use both to personalize and to delegate specialized work.
 4. Keep responses concise, practical, and in the user's language. Never fabricate tool output — report exactly what the bridge returns.`;
@@ -158,7 +166,7 @@ export class AIService {
   async streamChat(
     messages: BigGChatMessage[],
     callbacks: BigGChatCallbacks = {},
-    options: { web?: boolean } = {},
+    options: { web?: boolean; model?: string } = {},
   ): Promise<BigGStreamResult> {
     const text = await this.streamCompletion(messages, callbacks, options);
     const toolCalls = this.extractAllToolIntents(text);
@@ -168,14 +176,14 @@ export class AIService {
   private async streamCompletion(
     messages: BigGChatMessage[],
     callbacks: BigGChatCallbacks,
-    options: { web?: boolean },
+    options: { web?: boolean; model?: string },
   ): Promise<string> {
     if (!this.configured) {
       throw new Error("AIService: no OpenRouter API key configured");
     }
 
     const body: Record<string, unknown> = {
-      model: this.model,
+      model: options.model ?? this.model,
       messages: this.withSystemPrompt(messages),
       stream: true,
     };
@@ -539,10 +547,33 @@ export class AIService {
           return { ok: true, output: answer };
         }
 
+        case "run_code":
+        case "runCode":
+        case "run_code_now": {
+          if (!this.hooks.coder) {
+            return { ok: false, output: "Code execution engine is not connected." };
+          }
+          const code = requireString(args, "code", "run_code");
+          const language = typeof args["language"] === "string" ? args["language"] : "auto";
+          const output = await this.hooks.coder.runCode(code, language);
+          return { ok: true, output };
+        }
+
+        case "self_improve":
+        case "improve":
+        case "selfImprove": {
+          const text = requireString(args, "text", "self_improve");
+          if (!this.hooks.memory) {
+            return { ok: false, output: "Memory service is not connected." };
+          }
+          this.hooks.memory.addImprovement(text);
+          return { ok: true, output: `Self-improvement note saved: ${text}` };
+        }
+
         default:
           return {
             ok: false,
-            output: `Unknown tool '${tool}'. Valid tools: read_local_file, write_local_file, list_directory, file_metadata, delete_local_file, move_local_file, execute_windows_command, open_in_explorer, list_processes, kill_process, remember, remind, search_web.`,
+            output: `Unknown tool '${tool}'. Valid tools: read_local_file, write_local_file, list_directory, file_metadata, delete_local_file, move_local_file, execute_windows_command, open_in_explorer, list_processes, kill_process, remember, remind, search_web, run_code, self_improve.`,
           };
       }
     } catch (error) {

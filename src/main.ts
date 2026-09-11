@@ -6,6 +6,7 @@ import { MemoryService } from "./memoryService";
 import { SchedulerService } from "./schedulerService";
 import { VoiceService } from "./voiceService";
 import { AgentHub } from "./agentHub";
+import { CoderService } from "./coderService";
 import { ProactiveService } from "./proactiveService";
 import {
   isPermissionGranted,
@@ -81,6 +82,8 @@ const ttsVoice = (import.meta.env.VITE_OPENROUTER_VOICE as string | undefined) ?
 const researchModel =
   (import.meta.env.VITE_OPENROUTER_RESEARCH_MODEL as string | undefined) ?? "openrouter/auto:online";
 
+let coder!: CoderService;
+
 const ai = new AIService(
   apiKey,
   coreModel,
@@ -88,15 +91,20 @@ const ai = new AIService(
     memory: {
       addFact: (fact) => memory.addFact(fact),
       addEvent: (note) => memory.addEvent("note", note),
+      addImprovement: (note) => memory.addImprovement(note),
       buildContextBlock: () => memory.buildContextBlock(),
     },
     scheduler: {
       addReminder: (text, at) => scheduler.addReminder(text, at),
     },
+    coder: {
+      runCode: (code, language) => coder!.runRaw(code, language as "auto"),
+    },
   },
   { stt: sttModel, tts: ttsModel, voice: ttsVoice },
 );
 ai.setResearchModel(researchModel);
+coder = new CoderService(ai);
 
 const agents = new AgentHub();
 
@@ -200,6 +208,12 @@ async function handleTurn(transcript: string): Promise<void> {
           name: result.toolCalls[i]?.tool,
           content: res.output,
         });
+        if (!res.ok) {
+          memory.addEvent(
+            "toolerror",
+            `${result.toolCalls[i]?.tool ?? "tool"}: ${res.output.slice(0, 160)}`,
+          );
+        }
       });
       trimSession();
 

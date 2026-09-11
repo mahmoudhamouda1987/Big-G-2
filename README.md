@@ -16,7 +16,8 @@ No dedicated GPU is required — all heavy cognition runs in the cloud through O
 │  src/voiceService.ts     STT (OpenRouter) + TTS playback       │
 │  src/aiService.ts        streaming chat + tool interpreter     │
 │  src/agentHub.ts         chat/coder/vision/research/media      │
-│  src/memoryService.ts    persistent long-term memory           │
+  │  src/coderService.ts     code-execution self-fix loop          │
+  │  src/memoryService.ts    persistent long-term memory           │
 │  src/schedulerService.ts reminders + native notifications      │
 │  src/proactiveService.ts anticipation / suggestions            │
 │  src/main.ts             orb state machine + orchestration     │
@@ -152,8 +153,8 @@ The model emits fenced JSON tool intents at the start of a reply. The bridge exe
 
 ## Roadmap
 
-- [ ] Code-execution self-fix loop (run → read errors → fix → re-run)
-- [ ] Self-improvement notes persisted into memory
-- [ ] Richer proactive triggers (time-of-day, agenda, learned patterns)
+- [x] Code-execution self-fix loop (run → read errors → fix → re-run)
+- [x] Self-improvement notes persisted into memory
+- [x] Richer proactive triggers (time-of-day, agenda, learned patterns)
 - [ ] Email / calendar integration
 - [ ] Packaging for Linux / macOS
