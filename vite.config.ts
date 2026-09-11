@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   root: "src",
+  envDir: "..",
   clearScreen: false,
   envPrefix: ["VITE_", "TAURI_ENV_"],
   server: {

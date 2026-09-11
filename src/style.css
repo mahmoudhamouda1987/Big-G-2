@@ -1040,4 +1040,15 @@ body[data-state="speaking"] .hud-state { color: #ffd697; }
   .orb-asset {
     @apply rounded-full relative;
   }
+}.model-switcher {
+  margin: 8px 12px 0;
+  width: calc(100% - 24px);
+  padding: 5px 8px;
+  font-size: 11px;
+  border-radius: 8px;
+  background: rgba(31, 41, 55, 0.92);
+  color: #dbeafe;
+  border: 1px solid rgba(147, 197, 253, 0.28);
+  outline: none;
 }
+

@@ -78,10 +78,68 @@ export interface BigGExternalToolHooks {
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_AUDIO = "https://openrouter.ai/api/v1/audio";
+const GITHUB_MODELS_ENDPOINT = "https://models.github.ai/inference/chat/completions";
+const GOOGLE_GENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_MODEL = "openai/gpt-4o-mini";
 const DEFAULT_STT_MODEL = "openai/whisper-large-v3-turbo";
-const DEFAULT_TTS_MODEL = "openai/tts-1";
-const DEFAULT_TTS_VOICE = "alloy";
+const DEFAULT_TTS_MODEL = "mistralai/voxtral-mini-tts-2603";
+const DEFAULT_TTS_VOICE = "en_paul_neutral";
+const DEFAULT_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+const DEFAULT_VISION_MODEL = "openai/gpt-4o-mini";
+
+/** Live $0/token OpenRouter models (verified against the /models catalog and
+ *  live API with a $0-balance key).
+ *  - nvidia/nemotron-3-super-120b-a12b:free — VERIFIED working at $0 (262k ctx).
+ *  - google/gemma-4-31b-it:free — in catalog (vision/text) but providers were
+ *    returning transient "Provider returned error" during testing.
+ *  - thinkingmachines/inkling:free — only routable from approved "agentic
+ *    harness" apps; plain API calls are rejected.
+ *
+ *  NOTE about the "uncensored" finetunes: there is NO
+ *  `cognitivecomputations/dolphin-mistral-24b-venice-edition:free` or
+ *  `meta-llama/llama-3.3-70b-instruct:free` slug — the API rejects them
+ *  ("This model is unavailable for free…"). However, the plain paid slugs
+ *  (without `:free`) answered `pong` live at $0 balance during testing
+ *  (OpenRouter promos/capacity), though their catalog prices are non-zero:
+ *    dolphin … approx $0.2/M prompt • $0.9/M completion
+ *    llama-3.3-70b-instruct … $0.1/M prompt • $0.32/M completion
+ *  They are still subject to the provider's own alignment — no model or key
+ *  assignment removes that. */
+export const BIG_G_FREE_MODELS: readonly string[] = [
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+  "thinkingmachines/inkling:free",
+  "cohere/north-mini-code:free",
+];
+
+/** One-click presets offered in the Settings drawer. Includes the two
+ *  unfiltered-tuned finetunes the user asked to connect (dolphin + llama-3.3)
+ *  beside the default/agent models. All verified routable with the current key. */
+export const BIG_G_MODEL_PRESETS: readonly string[] = [
+  "openai/gpt-4o-mini",
+  "meta-llama/llama-3.3-70b-instruct",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+  "deepseek/deepseek-chat",
+  "qwen/qwen2.5-vl-72b-instruct",
+  "google/gemini-2.5-flash",
+];
+
+export type BigGProviderId = "openrouter" | "github" | "google";
+
+export interface BigGProviderKeys {
+  github?: string;
+  google?: string;
+}
+
+export interface BigGServiceOptions {
+  providers?: BigGProviderKeys;
+  freeModel?: string;
+  freeTier?: boolean;
+  systemPrompt?: string;
+  visionModel?: string;
+}
 
 /**
  * SYSTEM PROMPT — injected verbatim into every conversation with the model.
@@ -141,6 +199,12 @@ export class AIService {
   private sttModel: string;
   private ttsModel: string;
   private ttsVoice: string;
+  private githubKey: string;
+  private googleKey: string;
+  private freeTier: boolean;
+  private freeModel: string;
+  private visionModel: string;
+  private systemPrompt: string | null;
   private readonly hooks: BigGExternalToolHooks;
 
   constructor(
@@ -148,17 +212,75 @@ export class AIService {
     model: string = DEFAULT_MODEL,
     hooks: BigGExternalToolHooks = {},
     audio: { stt?: string; tts?: string; voice?: string } = {},
+    options: BigGServiceOptions = {},
   ) {
     this.apiKey = apiKey;
     this.model = model;
     this.sttModel = audio.stt ?? DEFAULT_STT_MODEL;
     this.ttsModel = audio.tts ?? DEFAULT_TTS_MODEL;
     this.ttsVoice = audio.voice ?? DEFAULT_TTS_VOICE;
+    this.githubKey = options.providers?.github?.trim() ?? "";
+    this.googleKey = options.providers?.google?.trim() ?? "";
+    this.freeTier = options.freeTier ?? false;
+    this.freeModel = options.freeModel?.trim() || DEFAULT_FREE_MODEL;
+    this.visionModel = options.visionModel?.trim() || DEFAULT_VISION_MODEL;
+    this.systemPrompt = options.systemPrompt?.trim() ? options.systemPrompt : null;
     this.hooks = hooks;
   }
 
   setApiKey(key: string): void {
     this.apiKey = key;
+  }
+
+  /** Registers failover keys for GitHub Models and/or Google AI Studio. */
+  setProviderKeys(providers: BigGProviderKeys): void {
+    if (providers.github !== undefined) this.githubKey = providers.github.trim();
+    if (providers.google !== undefined) this.googleKey = providers.google.trim();
+  }
+
+  get providerKeys(): BigGProviderKeys {
+    return { github: this.githubKey, google: this.googleKey };
+  }
+
+  /** Enables/disables free-tier routing: all OpenRouter chat goes to the
+   *  configured `:free` model instead of the paid main model. */
+  setFreeTier(enabled: boolean): void {
+    this.freeTier = enabled;
+  }
+
+  get freeTierEnabled(): boolean {
+    return this.freeTier;
+  }
+
+  get freeModelId(): string {
+    return this.freeModel;
+  }
+
+  setFreeModel(model: string): void {
+    const trimmed = model.trim();
+    if (trimmed) this.freeModel = trimmed;
+  }
+
+  /** Vision-capable model used automatically when a message carries an image
+   *  (camera frames, etc.) so text-only presets don't 404 on image input. */
+  setVisionModel(model: string): void {
+    const trimmed = model.trim();
+    if (trimmed) this.visionModel = trimmed;
+  }
+
+  get visionModelId(): string {
+    return this.visionModel;
+  }
+
+  /** Overrides the conversation persona. Empty string reverts to the default
+   *  Big G system prompt. Does NOT weaken the RULE_GATE approval step: model
+   *  text can never supply `confirmed = true` for guarded Rust commands. */
+  setSystemPrompt(prompt: string): void {
+    this.systemPrompt = prompt.trim() ? prompt : null;
+  }
+
+  getEffectiveSystemPrompt(): string {
+    return this.systemPrompt ?? BIG_G_SYSTEM_PROMPT;
   }
 
   setModel(model: string): void {
@@ -214,9 +336,51 @@ export class AIService {
       throw new Error("AIService: no OpenRouter API key configured");
     }
 
+    const sysMessages = this.withSystemPrompt(messages);
+    const attempts: Array<{ provider: BigGProviderId; run: () => Promise<string> }> = [
+      { provider: "openrouter", run: () => this.streamOpenRouter(sysMessages, callbacks, options) },
+    ];
+    if (this.githubKey) {
+      attempts.push({ provider: "github", run: () => this.streamGitHubModels(sysMessages, callbacks) });
+    }
+    if (this.googleKey) {
+      attempts.push({ provider: "google", run: () => this.streamGoogleGemini(sysMessages, callbacks) });
+    }
+
+    const errors: string[] = [];
+    for (const attempt of attempts) {
+      try {
+        return await attempt.run();
+      } catch (error) {
+        const message = String(error);
+        errors.push(`[${attempt.provider}] ${message}`);
+        callbacks.onError?.(`${attempt.provider} failed — trying next provider…`); // eslint-disable-line @typescript-eslint/no-unused-expressions
+      }
+    }
+    throw new Error(errors.join("\n"));
+  }
+
+  /** True if any message carries an inline image part (camera frames etc.). */
+  private hasImageInput(messages: BigGChatMessage[]): boolean {
+    return messages.some((message) => {
+      const content = message.content;
+      if (typeof content === "string") return content.startsWith("data:image/");
+      return Array.isArray(content) && content.some((part) => part.type === "image_url");
+    });
+  }
+
+  private async streamOpenRouter(
+    messages: BigGChatMessage[],
+    callbacks: BigGChatCallbacks,
+    options: { web?: boolean; model?: string },
+  ): Promise<string> {
+    const chosen = options.model ?? (this.freeTier ? this.freeModel : this.model);
+    const hasImage = this.hasImageInput(messages);
+    const model =
+      !options.model && hasImage ? this.visionModel : chosen;
     const body: Record<string, unknown> = {
-      model: options.model ?? this.model,
-      messages: this.withSystemPrompt(messages),
+      model,
+      messages,
       stream: true,
     };
     if (options.web) {
@@ -243,6 +407,63 @@ export class AIService {
     }
 
     return this.consumeStream(response.body, callbacks);
+  }
+
+  /** OpenAI-compatible failover route (free tier with any GitHub account).
+   *  Uses `gpt-4o-mini` — the largest always-available free catalog model. */
+  private async streamGitHubModels(
+    messages: BigGChatMessage[],
+    callbacks: BigGChatCallbacks,
+  ): Promise<string> {
+    const response = await fetch(GITHUB_MODELS_ENDPOINT, {
+      method: "POST",
+      signal: callbacks.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.githubKey}`,
+        "X-Title": "Big G",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: toOpenAIPayload(messages),
+        stream: true,
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`GitHub Models error ${response.status}: ${detail.slice(0, 300)}`);
+    }
+
+    return this.consumeStream(response.body, callbacks);
+  }
+
+  /** Gemini API failover route (free tier with an AI Studio key). */
+  private async streamGoogleGemini(
+    messages: BigGChatMessage[],
+    callbacks: BigGChatCallbacks,
+  ): Promise<string> {
+    const { contents, systemInstruction } = toGeminiPayload(messages);
+    const url =
+      `${GOOGLE_GENAI_ENDPOINT}/models/gemini-2.5-flash:streamGenerateContent` +
+      `?alt=sse&key=${encodeURIComponent(this.googleKey)}`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      signal: callbacks.signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction }] } } : {}),
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Google AI Studio error ${response.status}: ${detail.slice(0, 300)}`);
+    }
+
+    return this.consumeGeminiStream(response.body, callbacks);
   }
 
   private async consumeStream(
@@ -278,6 +499,57 @@ export class AIService {
             if (delta) {
               assembled += delta;
               callbacks.onToken?.(delta, assembled);
+            }
+          } catch {
+            // Malformed heartbeat line — ignore and continue.
+          }
+        }
+      }
+      return assembled;
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  private async consumeGeminiStream(
+    body: ReadableStream<Uint8Array>,
+    callbacks: BigGChatCallbacks,
+  ): Promise<string> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let assembled = "";
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line.startsWith("data:")) continue;
+
+          const payload = line.slice(5).trim();
+          if (!payload) continue;
+
+          try {
+            const json = JSON.parse(payload) as {
+              candidates?: Array<{
+                content?: { parts?: Array<{ text?: string }> };
+              }>;
+            };
+            const parts = json.candidates?.[0]?.content?.parts;
+            if (parts) {
+              for (const part of parts) {
+                if (part.text) {
+                  assembled += part.text;
+                  callbacks.onToken?.(part.text, assembled);
+                }
+              }
             }
           } catch {
             // Malformed heartbeat line — ignore and continue.
@@ -343,6 +615,7 @@ export class AIService {
         model: request.model ?? this.ttsModel,
         input: request.text,
         voice: request.voice ?? this.ttsVoice,
+        response_format: "mp3",
       }),
     });
 
@@ -719,7 +992,7 @@ export class AIService {
   /** Injects the Big G system prompt at the front of the message list. */
   private withSystemPrompt(messages: BigGChatMessage[]): BigGChatMessage[] {
     if (messages[0]?.role === "system") return messages;
-    return [{ role: "system", content: BIG_G_SYSTEM_PROMPT }, ...messages];
+    return [{ role: "system", content: this.getEffectiveSystemPrompt() }, ...messages];
   }
 }
 
@@ -733,6 +1006,85 @@ function requireString(
     throw new Error(`Tool '${tool}' requires a non-empty string arg '${key}'`);
   }
   return value;
+}
+
+/**
+ * Converts Big G messages into an OpenAI-style wire payload.
+ * `tool` roles are flattened to user text so OpenAI-compatible fallbacks
+ * (GitHub Models) never see a tool message without a matching assistant
+ * `tool_calls` block (which many strict backends reject).
+ */
+function toOpenAIPayload(messages: BigGChatMessage[]): Array<{ role: string; content: unknown }> {
+  return messages.map((message) => {
+    if (message.role === "tool") {
+      return {
+        role: "user" as const,
+        content: `[tool:${message.name ?? "unknown"}] ${String(message.content)}`,
+      };
+    }
+    return { role: message.role, content: message.content };
+  });
+}
+
+/**
+ * Converts Big G messages into a Gemini `contents[]` payload.
+ * System message becomes `systemInstruction`; `tool` roles become user text;
+ * `image_url` parts are rewritten to `inline_data` (Gemini rejects data-URLs).
+ */
+function toGeminiPayload(messages: BigGChatMessage[]): {
+  contents: Array<{ role: string; parts: Array<Record<string, unknown>> }>;
+  systemInstruction: string | null;
+} {
+  const contents: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
+  let systemInstruction: string | null = null;
+
+  for (const message of messages) {
+    if (message.role === "system") {
+      systemInstruction = String(message.content);
+      continue;
+    }
+
+    const parts: Array<Record<string, unknown>> = [];
+    if (Array.isArray(message.content)) {
+      for (const part of message.content) {
+        if (part.type === "text") {
+          parts.push({ text: part.text });
+        } else if (part.type === "image_url") {
+          const inline = dataUrlToInlineData(part.image_url.url);
+          if (inline) parts.push({ inline_data: inline });
+        }
+      }
+    } else {
+      parts.push({ text: String(message.content) });
+    }
+
+    const role =
+      message.role === "assistant" ? "model" : message.role === "tool" ? "user" : "user";
+    const prefix =
+      message.role === "tool"
+        ? `[tool:${message.name ?? "unknown"}] `
+        : message.role === "assistant"
+          ? ""
+          : "";
+    if (prefix) {
+      parts.unshift({ text: prefix });
+    }
+    contents.push({ role, parts });
+  }
+
+  return { contents, systemInstruction };
+}
+
+/** Parses `data:<mime>;base64,<b64>` into Gemini `inline_data`. */
+function dataUrlToInlineData(url: string): { mime_type: string; data: string } | null {
+  const comma = url.indexOf(",");
+  if (comma === -1) return null;
+  const header = url.slice(0, comma);
+  const match = /^data:([^;]+);base64$/i.exec(header);
+  if (!match) return null;
+  const data = url.slice(comma + 1);
+  if (!data) return null;
+  return { mime_type: match[1] ?? "image/jpeg", data };
 }
 
 function requireIntegrations(

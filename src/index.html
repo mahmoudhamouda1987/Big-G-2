@@ -46,6 +46,7 @@
         </aside>
 
         <section class="col-chat">
+          <select id="model-switcher" class="model-switcher" title="Active model"></select>
           <div id="transcript" class="transcript"></div>
           <form id="chat-form" class="chat-form" autocomplete="off">
             <input
@@ -104,11 +105,11 @@
           <div class="field-grid">
             <label class="field">
               <span>Core model</span>
-              <input id="cfg-model" class="input" type="text" />
+              <input id="cfg-model" class="input" type="text" list="model-presets" />
             </label>
             <label class="field">
               <span>Research model</span>
-              <input id="cfg-research" class="input" type="text" />
+              <input id="cfg-research" class="input" type="text" list="model-presets" />
             </label>
             <label class="field">
               <span>STT model</span>
@@ -121,6 +122,45 @@
             <label class="field">
               <span>TTS voice</span>
               <input id="cfg-voice" class="input" type="text" />
+            </label>
+          </div>
+
+          <datalist id="model-presets">
+            <option value="openai/gpt-4o-mini"></option>
+            <option value="meta-llama/llama-3.3-70b-instruct"></option>
+            <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition"></option>
+            <option value="nvidia/nemotron-3-super-120b-a12b:free"></option>
+            <option value="google/gemma-4-31b-it:free"></option>
+            <option value="deepseek/deepseek-chat"></option>
+            <option value="qwen/qwen2.5-vl-72b-instruct"></option>
+            <option value="google/gemini-2.5-flash"></option>
+          </datalist>
+
+          <h3 class="drawer-sub">Multi-provider failover &amp; free tier</h3>
+          <p class="drawer-hint">
+            Set <code>FREE TIER</code> to route all OpenRouter chats through a live <code>:free</code> model, then
+            either provider below as a backup if OpenRouter is rate-limited. Keys are optional and stay on-device.
+          </p>
+          <label class="field field--check">
+            <input id="cfg-free-tier" class="input--check" type="checkbox" />
+            <span>Free-tier mode (auto-select <code>:free</code> model)</span>
+          </label>
+          <label class="field">
+            <span>Free-tier model</span>
+            <input id="cfg-free-model" class="input" type="text" list="model-presets" placeholder="nvidia/nemotron-3-super-120b-a12b:free" />
+          </label>
+          <label class="field">
+            <span>Vision model (auto-used for camera/image input)</span>
+            <input id="cfg-vision-model" class="input" type="text" list="model-presets" placeholder="openai/gpt-4o-mini" />
+          </label>
+          <div class="field-grid">
+            <label class="field">
+              <span>GitHub Models token (failover)</span>
+              <input id="cfg-github-key" class="input" type="password" placeholder="github_pat_…" />
+            </label>
+            <label class="field">
+              <span>Google AI Studio key (failover)</span>
+              <input id="cfg-google-key" class="input" type="password" placeholder="AIza…" />
             </label>
           </div>
 
@@ -163,6 +203,13 @@
               <span>Use TLS for SMTP</span>
             </label>
           </div>
+
+          <h3 class="drawer-sub">Custom system prompt</h3>
+          <p class="drawer-hint">
+            Replaces Big&nbsp;G's default persona for all conversations. Leave blank to keep the built-in
+            prompt. Note: no prompt text can bypass the command-approval step for local file/process actions.
+          </p>
+          <textarea id="cfg-system-prompt" class="input input--area" rows="5" placeholder="Blank = default Big G persona"></textarea>
 
           <h3 class="drawer-sub">Security allowlist</h3>
           <p class="drawer-hint">PowerShell / Python / Node commands Big&nbsp;G may run without confirmation.</p>

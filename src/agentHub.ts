@@ -103,7 +103,10 @@ export class AgentHub {
     const previous = ai.getModel();
     ai.setModel(agent.model);
     try {
-      const result = await ai.streamChat(messages, callbacks, { web: options.web });
+      const result = await ai.streamChat(messages, callbacks, {
+        web: options.web,
+        model: agent.model,
+      });
       return result.text;
     } finally {
       ai.setModel(previous);
