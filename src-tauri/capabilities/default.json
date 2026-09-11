@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for the main Big G window. The custom Rust commands (read_local_file, write_local_file, execute_windows_command) are registered via generate_handler! in src-tauri/src/lib.rs and are always callable from frontend IPC; core permissions below enable dragging, always-on-top, and event subscriptions.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-focus",
+    "core:event:default",
+    "notification:default"
+  ]
+}

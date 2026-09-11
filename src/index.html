@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Big G</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main id="orb-shell" class="orb-shell" data-tauri-drag-region>
+      <div id="orb" class="orb orb--idle" data-tauri-drag-region>
+        <div id="aura" class="orb__aura" data-tauri-drag-region></div>
+        <div id="shock" class="orb__shock" data-tauri-drag-region></div>
+        <div id="core" class="orb__core" data-tauri-drag-region>
+          <span id="glyph" class="orb__glyph" data-tauri-drag-region>g</span>
+        </div>
+        <div id="ring" class="orb__ring" data-tauri-drag-region></div>
+      </div>
+    </main>
+
+    <div id="status-line" class="status-line">IDLE</div>
+    <div id="response-bubble" class="response-bubble"></div>
+
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>
