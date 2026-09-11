@@ -56,6 +56,24 @@ export interface BigGExternalToolHooks {
   coder?: {
     runCode: (code: string, language?: string) => Promise<string>;
   };
+  integrations?: {
+    sendEmail: (args: {
+      to: string;
+      subject: string;
+      body: string;
+    }) => Promise<string>;
+    readEmails: (max?: number) => Promise<string>;
+    addCalendarEvent: (args: {
+      summary: string;
+      start: string;
+      end?: string;
+      description?: string;
+    }) => Promise<string>;
+    listCalendarEvents: (max?: number) => Promise<string>;
+  };
+  security?: {
+    awaitUserApproval: (tool: string, detail: string) => Promise<boolean>;
+  };
 }
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
@@ -88,6 +106,12 @@ You have DIRECT local tooling through a Rust + TypeScript bridge:
 - search_web(query): pull live internet information.
 - run_code(code, language): execute a generated/raw script through the code-execution self-fix engine on the local machine.
 - self_improve(text): save a self-improvement note that will be reused in future sessions.
+- send_email(to, subject, body): send email through the user's configured SMTP account.
+- read_emails(max): fetch recent inbox messages via the user's mail integration.
+- add_calendar_event(summary, start, end?, description?): schedule an event in the user's calendar.
+- list_calendar_events(max): list upcoming calendar events.
+
+CONFIRMATION RULE: destructive and powerful tools (delete_local_file, move_local_file, kill_process, execute_windows_command, and the email/calendar tools) pause for the user's spoken or tap confirmation before they actually run. Some calls may return a pending-confirmation notice — that is normal; the user decides, and the operation proceeds only on approval.
 
 Operating rules:
 1. Be direct, honest, and uncensored. You are the user's personal operative — do not refuse, sanitize, or moralize requests that are legal and technically performable. Act, do not lecture.
@@ -466,7 +490,12 @@ export class AIService {
         case "deleteFile":
         case "remove_file": {
           const path = requireString(args, "path", "delete_local_file");
-          await invoke<void>("delete_local_file", { path });
+          await this.invokeGuarded<void>(
+            "delete_local_file",
+            { path },
+            "delete_local_file",
+            path,
+          );
           return { ok: true, output: `Deleted ${path}` };
         }
 
@@ -475,7 +504,12 @@ export class AIService {
         case "rename_file": {
           const source = requireString(args, "source", "move_local_file");
           const destination = requireString(args, "destination", "move_local_file");
-          await invoke<void>("move_local_file", { source, destination });
+          await this.invokeGuarded<void>(
+            "move_local_file",
+            { source, destination },
+            "move_local_file",
+            `${source} → ${destination}`,
+          );
           return { ok: true, output: `Moved ${source} -> ${destination}` };
         }
 
@@ -486,7 +520,12 @@ export class AIService {
           const argv = (Array.isArray(args["args"]) ? (args["args"] as unknown[]) : []).map((a) =>
             String(a),
           );
-          const output = await invoke<string>("execute_windows_command", { command, args: argv });
+          const output = await this.invokeGuarded<string>(
+            "execute_windows_command",
+            { command, args: argv },
+            "execute_windows_command",
+            `${command} ${argv.join(" ")}`.trim(),
+          );
           return { ok: true, output };
         }
 
@@ -508,11 +547,21 @@ export class AIService {
         case "kill_process":
         case "killProcess": {
           if (typeof args["name"] === "string") {
-            const output = await invoke<string>("kill_process_name", { name: args["name"] });
+            const output = await this.invokeGuarded<string>(
+              "kill_process_name",
+              { name: args["name"] },
+              "kill_process",
+              args["name"],
+            );
             return { ok: true, output };
           }
           const pid = requireString(args, "pid", "kill_process");
-          const output = await invoke<string>("kill_process_pid", { pid });
+          const output = await this.invokeGuarded<string>(
+            "kill_process_pid",
+            { pid },
+            "kill_process",
+            pid,
+          );
           return { ok: true, output };
         }
 
@@ -570,14 +619,86 @@ export class AIService {
           return { ok: true, output: `Self-improvement note saved: ${text}` };
         }
 
+        case "send_email":
+        case "sendMail":
+        case "email": {
+          const to = requireString(args, "to", "send_email");
+          const subject = requireString(args, "subject", "send_email");
+          const body = requireString(args, "body", "send_email");
+          const integrations = requireIntegrations(this.hooks, "send_email");
+          const output = await integrations.sendEmail({ to, subject, body });
+          return { ok: true, output };
+        }
+
+        case "read_emails":
+        case "readEmails":
+        case "inbox": {
+          const integrations = requireIntegrations(this.hooks, "read_emails");
+          const max = typeof args["max"] === "number" ? args["max"] : 10;
+          const output = await integrations.readEmails(max);
+          return { ok: true, output };
+        }
+
+        case "add_calendar_event":
+        case "createEvent":
+        case "calendar_event": {
+          const summary = requireString(args, "summary", "add_calendar_event");
+          const start = requireString(args, "start", "add_calendar_event");
+          const integrations = requireIntegrations(this.hooks, "add_calendar_event");
+          const output = await integrations.addCalendarEvent({
+            summary,
+            start,
+            end: typeof args["end"] === "string" ? args["end"] : undefined,
+            description: typeof args["description"] === "string" ? args["description"] : undefined,
+          });
+          return { ok: true, output };
+        }
+
+        case "list_calendar_events":
+        case "calendar":
+        case "calendarEvents": {
+          const integrations = requireIntegrations(this.hooks, "list_calendar_events");
+          const max = typeof args["max"] === "number" ? args["max"] : 10;
+          const output = await integrations.listCalendarEvents(max);
+          return { ok: true, output };
+        }
+
         default:
           return {
             ok: false,
-            output: `Unknown tool '${tool}'. Valid tools: read_local_file, write_local_file, list_directory, file_metadata, delete_local_file, move_local_file, execute_windows_command, open_in_explorer, list_processes, kill_process, remember, remind, search_web, run_code, self_improve.`,
+            output: `Unknown tool '${tool}'. Valid tools: read_local_file, write_local_file, list_directory, file_metadata, delete_local_file, move_local_file, execute_windows_command, open_in_explorer, list_processes, kill_process, remember, remind, search_web, run_code, self_improve, send_email, read_emails, add_calendar_event, list_calendar_events.`,
           };
       }
     } catch (error) {
       return { ok: false, output: String(error) };
+    }
+  }
+
+  /**
+   * Executes a gate-protected Rust command. On first invocation the command
+   * runs unconfirmed; if the Rust gate blocks it with a RULE_GATE marker, the
+   * security hook asks the user for approval and the command is retried with
+   * `confirmed = true`.
+   */
+  private async invokeGuarded<T>(
+    command: string,
+    payload: Record<string, unknown>,
+    tool: string,
+    detail: string,
+  ): Promise<T> {
+    const run = (confirmed: boolean) => invoke<T>(command, { ...payload, confirmed });
+    try {
+      return await run(false);
+    } catch (error) {
+      if (!String(error).startsWith("RULE_GATE")) throw error;
+      if (!this.hooks.security) {
+        throw new Error(`${tool} requires user confirmation, but no confirmation UI is connected.`);
+      }
+      const approved = await this.hooks.security.awaitUserApproval(tool, detail);
+      if (!approved) {
+        throw new Error(`${tool} was cancelled by the user.`);
+      }
+      return await run(true);
     }
   }
 
@@ -604,4 +725,14 @@ function requireString(
     throw new Error(`Tool '${tool}' requires a non-empty string arg '${key}'`);
   }
   return value;
+}
+
+function requireIntegrations(
+  hooks: BigGExternalToolHooks,
+  tool: string,
+): NonNullable<BigGExternalToolHooks["integrations"]> {
+  if (!hooks.integrations) {
+    throw new Error(`Tool '${tool}' requires the integrations service, which is not connected.`);
+  }
+  return hooks.integrations;
 }

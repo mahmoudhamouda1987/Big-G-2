@@ -1,7 +1,9 @@
 use std::path::Path;
 use std::process::{Command, Output};
+use std::sync::RwLock;
 
 use serde::Serialize;
+use tauri::{AppHandle, Manager, State};
 
 /* ================================================================== */
 /* FILE ENTRIES                                                        */
@@ -40,6 +42,65 @@ pub struct ProcessEntry {
     pub session_name: String,
     pub session_number: String,
     pub memory_kb: String,
+}
+
+/* ================================================================== */
+/* COMMAND GATE — the human-in-the-loop confirmation layer             */
+/* ================================================================== */
+
+const RULE_GATE: &str = "RULE_GATE:";
+
+/// Inspectable, configurable safety gate for destructive operations.
+///
+/// - `allowlist`: path prefixes that may be deleted/moved without a prompt.
+/// - `script_dir`: app-data script folder auto-allowed for the code-fix
+///   loop (powershell/python/node may execute files living in that folder).
+///
+/// Everything else destructive (deletes, moves, process kills, arbitrary
+/// command execution) returns a `RULE_GATE:` marker so the frontend can
+/// ask the user for approval and re-invoke with `confirmed = true`.
+#[derive(Default)]
+pub struct CommandGate {
+    allowlist: RwLock<Vec<String>>,
+    script_dir: RwLock<Option<String>>,
+}
+
+impl CommandGate {
+    fn path_allowed(&self, path: &str) -> bool {
+        let allowlist = self.allowlist.read().unwrap_or_else(|e| e.into_inner());
+        let normalized = path.trim_end_matches(['\\', '/']);
+        allowlist
+            .iter()
+            .any(|allowed| normalized.starts_with(allowed.trim_end_matches(['\\', '/'])))
+    }
+
+    fn exec_allowed(&self, command: &str, args: &[String]) -> bool {
+        if !matches!(
+            command,
+            "powershell" | "powershell.exe" | "pwsh" | "python" | "python.exe" | "node" | "node.exe"
+        ) {
+            return false;
+        }
+        let dir = self.script_dir.read().unwrap_or_else(|e| e.into_inner());
+        dir.as_ref()
+            .map(|d| args.iter().any(|a| a.starts_with(d)))
+            .unwrap_or(false)
+    }
+}
+
+/// Frontend-configures the gate: script folder + path allowlist.
+#[tauri::command]
+fn set_command_gate(
+    gate: State<'_, CommandGate>,
+    script_dir: Option<String>,
+    allow_keys: Vec<String>,
+) -> Result<(), String> {
+    let mut dir = gate.script_dir.write().map_err(|e| format!("gate lock poisoned: {e}"))?;
+    *dir = script_dir;
+    drop(dir);
+    let mut list = gate.allowlist.write().map_err(|e| format!("gate lock poisoned: {e}"))?;
+    *list = allow_keys;
+    Ok(())
 }
 
 /* ================================================================== */
@@ -169,8 +230,18 @@ fn file_metadata(path: String) -> Result<FileMeta, String> {
 }
 
 /// Deletes a file, or recursively removes a directory tree.
+/// Guarded: requires `confirmed = true` unless the path matches the allowlist.
 #[tauri::command]
-async fn delete_local_file(path: String) -> Result<(), String> {
+async fn delete_local_file(
+    app: AppHandle,
+    path: String,
+    confirmed: Option<bool>,
+) -> Result<(), String> {
+    let gate = app.state::<CommandGate>();
+    if confirmed != Some(true) && !gate.path_allowed(&path) {
+        return Err(format!("{RULE_GATE}delete_local_file:{path}"));
+    }
+
     let target = Path::new(&path);
     if !target.exists() {
         return Err(format!("delete_local_file: '{path}' does not exist"));
@@ -194,8 +265,19 @@ async fn delete_local_file(path: String) -> Result<(), String> {
 }
 
 /// Moves or renames a file/directory, creating the destination parent.
+/// Guarded: requires `confirmed = true` unless the source matches the allowlist.
 #[tauri::command]
-async fn move_local_file(source: String, destination: String) -> Result<(), String> {
+async fn move_local_file(
+    app: AppHandle,
+    source: String,
+    destination: String,
+    confirmed: Option<bool>,
+) -> Result<(), String> {
+    let gate = app.state::<CommandGate>();
+    if confirmed != Some(true) && !gate.path_allowed(&source) {
+        return Err(format!("{RULE_GATE}move_local_file:{source}"));
+    }
+
     let src = Path::new(&source);
     if !src.exists() {
         return Err(format!("move_local_file: '{source}' does not exist"));
@@ -255,8 +337,22 @@ fn is_writable(path: &Path) -> bool {
 
 /// Executes a native process or command-prompt pipeline, capturing stdout
 /// and stderr completely. Falls back to `cmd /C` for shell builtins.
+/// Guarded: auto-allowed only for code-fix scripts inside the configured
+/// script folder; everything else requires `confirmed = true`.
 #[tauri::command]
-fn execute_windows_command(command: String, args: Vec<String>) -> Result<String, String> {
+fn execute_windows_command(
+    app: AppHandle,
+    command: String,
+    args: Vec<String>,
+    confirmed: Option<bool>,
+) -> Result<String, String> {
+    if confirmed != Some(true) {
+        let gate = app.state::<CommandGate>();
+        if !gate.exec_allowed(&command, &args) {
+            let label = format!("{} {:?}", command, args);
+            return Err(format!("{RULE_GATE}execute_windows_command:{label}"));
+        }
+    }
     run_process(&command, &args)
 }
 
@@ -302,8 +398,12 @@ fn list_processes() -> Result<Vec<ProcessEntry>, String> {
 }
 
 /// Force-kills a process by image name.
+/// Guarded: always requires explicit `confirmed = true`.
 #[tauri::command]
-fn kill_process_name(name: String) -> Result<String, String> {
+fn kill_process_name(name: String, confirmed: Option<bool>) -> Result<String, String> {
+    if confirmed != Some(true) {
+        return Err(format!("{RULE_GATE}kill_process:{name}"));
+    }
     let out = Command::new("taskkill")
         .args(["/IM", &name, "/F", "/T"])
         .output()
@@ -312,8 +412,12 @@ fn kill_process_name(name: String) -> Result<String, String> {
 }
 
 /// Force-kills a process by PID.
+/// Guarded: always requires explicit `confirmed = true`.
 #[tauri::command]
-fn kill_process_pid(pid: String) -> Result<String, String> {
+fn kill_process_pid(pid: String, confirmed: Option<bool>) -> Result<String, String> {
+    if confirmed != Some(true) {
+        return Err(format!("{RULE_GATE}kill_process:{pid}"));
+    }
     let out = Command::new("taskkill")
         .args(["/PID", &pid, "/F", "/T"])
         .output()
@@ -416,6 +520,7 @@ fn friendly_io_error(e: &std::io::Error) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .manage(CommandGate::default())
         .invoke_handler(tauri::generate_handler![
             read_local_file,
             write_local_file,
@@ -427,7 +532,8 @@ pub fn run() {
             open_in_explorer,
             list_processes,
             kill_process_name,
-            kill_process_pid
+            kill_process_pid,
+            set_command_gate
         ])
         .run(tauri::generate_context!())
         .expect("error while running Big G tauri application");

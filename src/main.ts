@@ -7,6 +7,7 @@ import { SchedulerService } from "./schedulerService";
 import { VoiceService } from "./voiceService";
 import { AgentHub } from "./agentHub";
 import { CoderService } from "./coderService";
+import { IntegrationsService } from "./integrationsService";
 import { ProactiveService } from "./proactiveService";
 import {
   isPermissionGranted,
@@ -14,6 +15,8 @@ import {
   sendNotification,
 } from "@tauri-apps/plugin-notification";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
+import { appDataDir } from "@tauri-apps/api/path";
 
 /* ------------------------------------------------------------------ */
 /* DOM                                                                 */
@@ -57,6 +60,46 @@ function hideResponse(): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* Preference accessors (integration + gate config live in memory)      */
+/* ------------------------------------------------------------------ */
+
+function prefString(memory: MemoryService, key: string): string | undefined {
+  const value = memory.allPreferences()[key];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function prefNumber(memory: MemoryService, key: string, fallback: number): number {
+  const value = memory.allPreferences()[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function prefBoolean(memory: MemoryService, key: string, fallback: boolean): boolean {
+  const value = memory.allPreferences()[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
+/* ------------------------------------------------------------------ */
+/* Human-in-the-loop confirmation gate                                  */
+/* ------------------------------------------------------------------ */
+
+let confirmResolver: ((approved: boolean) => void) | null = null;
+
+function requestUserConfirmation(tool: string, detail: string): Promise<boolean> {
+  if (confirmResolver) {
+    confirmResolver(false);
+    confirmResolver = null;
+  }
+  return new Promise<boolean>((resolve) => {
+    confirmResolver = resolve;
+    showResponse(`ALLOW?\n${tool.toUpperCase()} — ${detail.slice(0, 120)}\nTAP the orb to approve · ESC to cancel`);
+    statusLine.textContent = `CONFIRM:${tool.toUpperCase()}`;
+    void voice.speak(
+      `This needs your approval: ${tool.replaceAll("_", " ")}. ${detail.slice(0, 100)}. Tap me to allow, or press escape to cancel.`,
+    ).catch(() => undefined);
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Services                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -70,6 +113,20 @@ const media = new MediaService({
 
 const memory = new MemoryService();
 const scheduler = new SchedulerService(memory, 10_000);
+
+const integrations = new IntegrationsService(() => ({
+  email: {
+    smtpHost: prefString(memory, "smtp_host"),
+    smtpPort: prefNumber(memory, "smtp_port", 587),
+    smtpUser: prefString(memory, "smtp_user"),
+    smtpPass: prefString(memory, "smtp_pass"),
+    from: prefString(memory, "smtp_from") || undefined,
+    enableTls: prefBoolean(memory, "smtp_tls", true),
+  },
+  gmailToken: prefString(memory, "gmail_token"),
+  calendarToken: prefString(memory, "calendar_token"),
+  calendarId: prefString(memory, "calendar_id"),
+}));
 
 const apiKey = (import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined) ?? "";
 const coreModel =
@@ -99,6 +156,15 @@ const ai = new AIService(
     },
     coder: {
       runCode: (code, language) => coder!.runRaw(code, language as "auto"),
+    },
+    integrations: {
+      sendEmail: (args) => integrations.sendEmail(args),
+      readEmails: (max) => integrations.readEmails(max),
+      addCalendarEvent: (args) => integrations.addCalendarEvent(args),
+      listCalendarEvents: (max) => integrations.listCalendarEvents(max),
+    },
+    security: {
+      awaitUserApproval: (tool, detail) => requestUserConfirmation(tool, detail),
     },
   },
   { stt: sttModel, tts: ttsModel, voice: ttsVoice },
@@ -278,6 +344,27 @@ function trimSession(): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* Command gate configuration                                           */
+/* ------------------------------------------------------------------ */
+
+async function configureCommandGate(): Promise<void> {
+  try {
+    const dir = await appDataDir();
+    const sep = dir.endsWith("\\") || dir.endsWith("/") ? "" : "\\";
+    const scriptDir = `${dir}${sep}big-g-scripts`;
+
+    const allowRaw = memory.allPreferences()["security_allowlist"];
+    const allowKeys = Array.isArray(allowRaw)
+      ? allowRaw.filter((entry): entry is string => typeof entry === "string")
+      : [];
+
+    await invoke<void>("set_command_gate", { scriptDir, allowKeys });
+  } catch (error) {
+    console.warn("[Big G] command gate not configured:", error);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Interaction: tap wakes/sleeps, drag moves the overlay               */
 /* ------------------------------------------------------------------ */
 
@@ -297,6 +384,14 @@ orbShell.addEventListener("pointermove", (event) => {
 }, { passive: true });
 
 orbShell.addEventListener("pointerup", () => {
+  if (confirmResolver !== null) {
+    const resolve = confirmResolver;
+    confirmResolver = null;
+    hideResponse();
+    statusLine.textContent = "THINKING";
+    resolve(true);
+    return;
+  }
   if (pointerDownAt === null || dragged) {
     pointerDownAt = null;
     return;
@@ -381,6 +476,7 @@ async function boot(): Promise<void> {
   try {
     await memory.load();
     await memory.save();
+    await configureCommandGate();
   } catch {
     // memory degrades to non-persistent.
   }
@@ -396,6 +492,14 @@ async function boot(): Promise<void> {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (confirmResolver !== null) {
+        const resolve = confirmResolver;
+        confirmResolver = null;
+        hideResponse();
+        statusLine.textContent = "THINKING";
+        resolve(false);
+        return;
+      }
       voice.stop();
       setOrbState("idle");
       hideResponse();
