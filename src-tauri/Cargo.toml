@@ -1,6 +1,6 @@
 [package]
 name = "big-g"
-version = "0.1.0"
+version = "0.1.1"
 description = "Big G - ultra-secure local Rust bridge for the multi-modal AI desktop overlay"
 authors = ["Big G"]
 edition = "2021"
