@@ -130,14 +130,14 @@ const integrations = new IntegrationsService(() => ({
 
 const apiKey = (import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined) ?? "";
 const coreModel =
-  (import.meta.env.VITE_OPENROUTER_MODEL as string | undefined) ?? "openchat/openchat-7b";
+  (import.meta.env.VITE_OPENROUTER_MODEL as string | undefined) ?? "openai/gpt-4o-mini";
 const sttModel =
   (import.meta.env.VITE_OPENROUTER_STT_MODEL as string | undefined) ?? "openai/whisper-large-v3-turbo";
 const ttsModel =
   (import.meta.env.VITE_OPENROUTER_TTS_MODEL as string | undefined) ?? "openai/tts-1";
 const ttsVoice = (import.meta.env.VITE_OPENROUTER_VOICE as string | undefined) ?? "alloy";
 const researchModel =
-  (import.meta.env.VITE_OPENROUTER_RESEARCH_MODEL as string | undefined) ?? "openrouter/auto:online";
+  (import.meta.env.VITE_OPENROUTER_RESEARCH_MODEL as string | undefined) ?? "google/gemini-2.5-flash";
 
 let coder!: CoderService;
 

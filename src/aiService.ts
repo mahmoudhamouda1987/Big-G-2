@@ -78,7 +78,7 @@ export interface BigGExternalToolHooks {
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_AUDIO = "https://openrouter.ai/api/v1/audio";
-const DEFAULT_MODEL = "openchat/openchat-7b";
+const DEFAULT_MODEL = "openai/gpt-4o-mini";
 const DEFAULT_STT_MODEL = "openai/whisper-large-v3-turbo";
 const DEFAULT_TTS_MODEL = "openai/tts-1";
 const DEFAULT_TTS_VOICE = "alloy";
@@ -367,7 +367,7 @@ export class AIService {
         "X-Title": "Big G",
       },
       body: JSON.stringify({
-        model: researchModel.includes(":online") ? researchModel : `${researchModel}:online`,
+        model: researchModel,
         messages: [
           {
             role: "system",
@@ -702,8 +702,8 @@ export class AIService {
     }
   }
 
-  /** Research model override used by search_web (e.g. openrouter/auto:online). */
-  private researchModel = "openrouter/auto:online";
+  /** Research model override used by search_web (web-plugin capable model). */
+  private researchModel = "google/gemini-2.5-flash";
   setResearchModel(model: string): void {
     this.researchModel = model;
   }

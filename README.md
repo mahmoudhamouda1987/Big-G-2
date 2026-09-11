@@ -88,11 +88,15 @@ npm run tauri build           # produces NSIS installer in src-tauri/target/rele
 | Variable | Default | Purpose |
 |---|---|---|
 | `VITE_OPENROUTER_API_KEY` | — | Required; streamed into the frontend bundle |
-| `VITE_OPENROUTER_MODEL` | `openchat/openchat-7b` | Core thinking model |
+| `VITE_OPENROUTER_MODEL` | `openai/gpt-4o-mini` | Core thinking model |
 | `VITE_OPENROUTER_STT_MODEL` | `openai/whisper-large-v3-turbo` | Speech-to-text |
 | `VITE_OPENROUTER_TTS_MODEL` | `openai/tts-1` | Text-to-speech |
 | `VITE_OPENROUTER_VOICE` | `alloy` | TTS voice |
-| `VITE_OPENROUTER_RESEARCH_MODEL` | `openrouter/auto:online` | Web-search agent |
+| `VITE_OPENROUTER_RESEARCH_MODEL` | `google/gemini-2.5-flash` | Web-search agent |
+
+> **Audio balance note:** OpenRouter requires a minimum **$0.50 account balance** for the
+> audio (STT/TTS) endpoints. Voice-in/voice-out stay silent until that balance exists;
+> chat, tools, and web research work regardless.
 
 ---
 

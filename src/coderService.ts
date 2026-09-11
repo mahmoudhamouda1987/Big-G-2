@@ -19,7 +19,7 @@ export interface BigGCodeRunOptions {
   callbacks?: BigGChatCallbacks;
 }
 
-const DEFAULT_CODER_MODEL = "qwen/qwen2.5-coder-32b-instruct";
+const DEFAULT_CODER_MODEL = "deepseek/deepseek-chat";
 const DEFAULT_MAX_ATTEMPTS = 3;
 const OUTPUT_CAP = 8000;
 

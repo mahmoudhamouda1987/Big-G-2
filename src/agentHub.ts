@@ -27,13 +27,13 @@ export class AgentHub {
       id: "chat",
       name: "Big G Core",
       purpose: "General conversation, cognition, and daily assistance.",
-      model: "openchat/openchat-7b",
+      model: "openai/gpt-4o-mini",
     },
     {
       id: "coding",
       name: "Coder",
       purpose: "Software engineering: writing, debugging, and reviewing code.",
-      model: "qwen/qwen2.5-coder-32b-instruct",
+      model: "deepseek/deepseek-chat",
     },
     {
       id: "vision",
@@ -45,7 +45,7 @@ export class AgentHub {
       id: "research",
       name: "Researcher",
       purpose: "Live web search, news, and real-time information retrieval.",
-      model: "openrouter/auto:online",
+      model: "google/gemini-2.5-flash",
     },
     {
       id: "media",
