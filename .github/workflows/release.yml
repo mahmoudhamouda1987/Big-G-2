@@ -62,12 +62,16 @@ jobs:
           merge-multiple: true
 
       - name: Create GitHub release and upload assets
+        shell: bash
         run: |
-          files=""
-          while IFS= read -r line; do
-            if [ -n "$line" ]; then files="$files $line"; fi
-          done < <(find bundles -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.app.tar.gz' \))
-          gh release create "${{ github.ref_name }}" $files \
+          cd bundles
+          files=()
+          while IFS= read -r -d '' f; do
+            files+=("$f")
+          done < <(find . -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.app.tar.gz' \))
+          printf 'Uploading %d asset(s):\n' "${#files[@]}"
+          printf '  %s\n' "${files[@]}"
+          gh release create "${{ github.ref_name }}" "${files[@]}" \
             --title "Big G ${{ github.ref_name }}" \
             --notes "Big G ${{ github.ref_name }} — cross-platform desktop AI assistant. See the repository README for features, tools, security model, and the self-hosted OpenRouter pipeline."
         env:
