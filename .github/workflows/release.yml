@@ -8,8 +8,8 @@ permissions:
   contents: write
 
 jobs:
-  build-release:
-    name: Build & release (${{ matrix.platform }})
+  build:
+    name: Build (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
@@ -39,13 +39,36 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and attach artifacts
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the Tauri application and bundles
+        run: npx @tauri-apps/cli@2 build
+
+      - name: Upload bundle artifacts
+        uses: actions/upload-artifact@v4
         with:
-          projectPath: src-tauri
-          tagName: ${{ github.ref_name }}
-          releaseName: "Big G ${{ github.ref_name }}"
-          releaseDraft: true
-          prerelease: false
+          name: bundle-${{ matrix.platform }}
+          path: src-tauri/target/release/bundle/**
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all bundle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bundles
+          merge-multiple: true
+
+      - name: Create GitHub release and upload assets
+        run: |
+          files=""
+          while IFS= read -r line; do
+            if [ -n "$line" ]; then files="$files $line"; fi
+          done < <(find bundles -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.app.tar.gz' \))
+          gh release create "${{ github.ref_name }}" $files \
+            --title "Big G ${{ github.ref_name }}" \
+            --notes "Big G ${{ github.ref_name }} — cross-platform desktop AI assistant. See the repository README for features, tools, security model, and the self-hosted OpenRouter pipeline."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
